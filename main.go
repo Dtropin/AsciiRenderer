@@ -1,68 +1,75 @@
 package main
 
 import (
-	"AsciiRenderer/bresenham"
 	camera_controller "AsciiRenderer/camera-controller"
 	input_contoller "AsciiRenderer/input-contoller"
 	"AsciiRenderer/mesh-controller"
-	"AsciiRenderer/terminal-context"
-	"gonum.org/v1/gonum/mat"
+	rasterization_contoller "AsciiRenderer/rasterization-contoller"
+	render_context "AsciiRenderer/terminal-context"
+	"github.com/go-gl/mathgl/mgl32"
+	"math"
 	"time"
 )
 
-type Edge [2]int
-
 func main() {
-	render_context.Init()
-	defer render_context.Close()
+	viewPortController := render_context.Init()
+	defer viewPortController.Close()
 
-	halfSize := 0.5
-	rawVertices := []*mat.Dense{
-		mat.NewDense(1, 4, []float64{-halfSize, -halfSize, -halfSize, 1}),
-		mat.NewDense(1, 4, []float64{halfSize, -halfSize, -halfSize, 1}), // 1: правый-нижний-задний
-		mat.NewDense(1, 4, []float64{halfSize, halfSize, -halfSize, 1}),  // 2: правый-верхний-задний
-		mat.NewDense(1, 4, []float64{-halfSize, halfSize, -halfSize, 1}), // 3: левый-верхний-задний
-		mat.NewDense(1, 4, []float64{-halfSize, -halfSize, halfSize, 1}), // 4: левый-нижний-передний
-		mat.NewDense(1, 4, []float64{halfSize, -halfSize, halfSize, 1}),  // 5: правый-нижний-передний
-		mat.NewDense(1, 4, []float64{halfSize, halfSize, halfSize, 1}),   // 6: правый-верхний-передний
-		mat.NewDense(1, 4, []float64{-halfSize, halfSize, halfSize, 1}),  // 7: левый-верхний-передний
+	var halfSize float32 = 0.5
+	rawVertices := []mgl32.Vec4{
+		mgl32.Vec4{-halfSize, -halfSize, -halfSize, 1},
+		mgl32.Vec4{halfSize, -halfSize, -halfSize, 1},
+		mgl32.Vec4{halfSize, halfSize, -halfSize, 1},
+		mgl32.Vec4{-halfSize, halfSize, -halfSize, 1},
+
+		mgl32.Vec4{-halfSize, -halfSize, halfSize, 1},
+		mgl32.Vec4{halfSize, -halfSize, halfSize, 1},
+		mgl32.Vec4{halfSize, halfSize, halfSize, 1},
+		mgl32.Vec4{-halfSize, halfSize, halfSize, 1},
 	}
 
 	meshController := mesh_controller.Init()
 	meshController.AddVerticesToMesh(rawVertices)
 
 	cameraController := camera_controller.Init()
-	cameraController.SetPos(0, 0, -15)
+	cameraController.SetPos(0, 0, 5)
 
-	go input_contoller.HandleInputs(cameraController)
+	//TODO общую структуру для вершин
+	colors := []rune{
+		'░', '▒', '▓', '█', '╳', '│', '┼', 'O',
+	}
 
-	edges := []Edge{
-		{0, 1}, {1, 2}, {2, 3}, {3, 0}, // Нижняя грань
-		{4, 5}, {5, 6}, {6, 7}, {7, 4}, // Верхняя грань
-		{0, 4}, {1, 5}, {2, 6}, {3, 7}, // Вертикальные рёбра
+	polys := [][]int{
+		{0, 1, 2}, {0, 2, 3}, {1, 5, 6}, {1, 6, 2},
+		{5, 4, 7}, {5, 7, 6}, {4, 0, 3}, {4, 3, 7},
+		{3, 2, 6}, {3, 6, 7}, {4, 5, 1}, {4, 1, 0},
 	}
 
 	ticker := time.NewTicker(16 * time.Millisecond) // ~60 FPS
 	defer ticker.Stop()
-
+	var tick = 0
 	for {
 		select {
 		case <-ticker.C:
-			render_context.Clear()
-			windowWidth, windowHeight := render_context.GetWindowSize()
-			meshController.ProcessVertices(cameraController, windowWidth, windowHeight)
-			projectedVertices := meshController.GetProjectedVertices()
+			input_contoller.HandleInputKeys(cameraController)
+			viewPortController.Clear()
+			windowWidth, windowHeight := viewPortController.GetWindowSize()
 
-			for i := 0; i < len(projectedVertices); i = i + 2 {
-				render_context.SetChar(projectedVertices[i], projectedVertices[i+1], '*')
+			//TODO отслеживать изменения окна и если было - пересоздавать буфер
+			w, h := viewPortController.GetWindowSize()
+			zbuff := make([][]float32, w+1)
+
+			for i := 0; i < w+1; i++ {
+				zbuff[i] = make([]float32, h+1)
+				for j := 0; j < h+1; j++ {
+					zbuff[i][j] = -math.MaxFloat32
+				}
 			}
 
-			//todo rasterization-contoller
-			for _, edge := range edges {
-				bresenham.DrawLine('-', '|', '/', '\\', projectedVertices[edge[0]*2], projectedVertices[edge[0]*2+1], projectedVertices[edge[1]*2], projectedVertices[edge[1]*2+1])
-			}
-
-			render_context.Flush()
+			meshController.ProcessVertices(cameraController, windowWidth, windowHeight, tick%360)
+			tick = tick + 1
+			rasterization_contoller.ScanlineRasterization(polys, meshController.GetProjectedVertices(), zbuff, colors, viewPortController)
+			viewPortController.Flush()
 		}
 	}
 }

@@ -1,11 +1,11 @@
 package bresenham
 
 import (
-	"github.com/nsf/termbox-go"
+	render_context "AsciiRenderer/terminal-context"
 	"math"
 )
 
-func DrawLine(sidechar, upchar, diagupchar, diagdownchar byte, x0, y0, x1, y1 int) {
+func DrawLine(viewPortController *render_context.ViewPortController, downsidechar, upsidechar, upchar, diagupchar, diagdownchar rune, x0, y0, x1, y1 int) {
 	if x0 == x1 && y0 == y1 {
 		return
 	}
@@ -26,17 +26,18 @@ func DrawLine(sidechar, upchar, diagupchar, diagdownchar byte, x0, y0, x1, y1 in
 
 	err := dx + dy
 
-	var dirmap = make(map[[2]int]byte)
+	var dirmap = make(map[[2]int]rune)
 	dirmap[[2]int{1, 1}] = diagdownchar
 	dirmap[[2]int{1, -1}] = diagupchar
 	dirmap[[2]int{-1, -1}] = diagdownchar
 	dirmap[[2]int{-1, 1}] = diagupchar
 	dirmap[[2]int{0, 1}] = upchar
 	dirmap[[2]int{0, -1}] = upchar
-	dirmap[[2]int{1, 0}] = sidechar
-	dirmap[[2]int{-1, 0}] = sidechar
+	dirmap[[2]int{1, 0}] = downsidechar
+	dirmap[[2]int{-1, 0}] = downsidechar
 
 	var dir = [2]int{0, 0}
+	var prevchar *rune
 
 	for {
 		tmperr := 2 * err
@@ -59,7 +60,30 @@ func DrawLine(sidechar, upchar, diagupchar, diagdownchar byte, x0, y0, x1, y1 in
 			return
 		}
 
+		var char = dirmap[dir]
+
+		if char == downsidechar {
+			if prevchar != nil {
+				if *prevchar != downsidechar {
+					//TODO map
+					if *prevchar == upsidechar {
+						char = upsidechar
+					}
+					if *prevchar == upchar {
+						char = downsidechar
+					}
+					if *prevchar == diagupchar {
+						char = upsidechar
+					}
+					if *prevchar == diagdownchar {
+						char = downsidechar
+					}
+				}
+			}
+		}
+
 		//TODO сделать абстракцию через интерфейс
-		termbox.SetCell(x0, y0, rune(dirmap[dir]), termbox.ColorWhite, termbox.ColorDefault)
+		viewPortController.SetChar(x0, y0, char)
+		prevchar = &char
 	}
 }

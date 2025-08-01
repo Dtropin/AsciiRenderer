@@ -1,39 +1,65 @@
 package render_context
 
 import (
-	"fmt"
-	"github.com/nsf/termbox-go"
+	"github.com/gdamore/tcell/v2"
+	"sync"
 )
 
-func Init() {
-	err := termbox.Init()
+type ViewPortController struct {
+	screen tcell.Screen //TODO разбить инпут
+}
 
-	if err != nil {
-		panic("Can't init termbox: " + err.Error())
+var (
+	instance *ViewPortController
+	once     sync.Once
+)
+
+func Init() *ViewPortController {
+	once.Do(func() {
+		instance = &ViewPortController{}
+		screen, err := tcell.NewScreen()
+
+		if err != nil {
+			panic("Can't init viewport: " + err.Error())
+		}
+
+		if err := screen.Init(); err != nil {
+			panic(err)
+		}
+		screen.SetStyle(tcell.StyleDefault.
+			Foreground(tcell.ColorWhite).
+			Background(tcell.ColorBlack))
+		screen.EnablePaste()
+		instance.screen = screen
+	})
+	return instance
+}
+
+func (v *ViewPortController) Clear() {
+	w, h := v.screen.Size()
+	for y := 0; y < h; y++ {
+		for x := 0; x < w; x++ {
+			v.screen.SetContent(x, y, ' ', nil, tcell.StyleDefault)
+		}
 	}
-
-	termbox.SetInputMode(termbox.InputEsc)
-	termbox.Clear(termbox.ColorDefault, termbox.ColorDefault)
 }
 
-func Clear() {
-	termbox.Clear(termbox.ColorDefault, termbox.ColorDefault)
+func (v *ViewPortController) PollEvent() tcell.Event {
+	return instance.screen.PollEvent()
 }
 
-func SetChar(x, y int, char rune) {
-	termbox.SetCell(x, y, char, termbox.ColorWhite, termbox.ColorDefault)
+func (v *ViewPortController) SetChar(x, y int, char rune) {
+	v.screen.SetContent(x, y, char, nil, tcell.StyleDefault)
 }
 
-func Flush() {
-	if flusherr := termbox.Flush(); flusherr != nil {
-		fmt.Println("Error:", flusherr)
-	}
+func (v *ViewPortController) Flush() {
+	v.screen.Show()
 }
 
-func GetWindowSize() (int, int) {
-	return termbox.Size()
+func (v *ViewPortController) GetWindowSize() (int, int) {
+	return v.screen.Size()
 }
 
-func Close() {
-	termbox.Close()
+func (v *ViewPortController) Close() {
+	v.screen.Fini()
 }

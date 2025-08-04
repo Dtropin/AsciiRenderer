@@ -15,35 +15,70 @@ func main() {
 	viewPortController := render_context.Init()
 	defer viewPortController.Close()
 
-	var halfSize float32 = 0.5
 	rawVertices := []mgl32.Vec4{
-		mgl32.Vec4{-halfSize, -halfSize, -halfSize, 1},
-		mgl32.Vec4{halfSize, -halfSize, -halfSize, 1},
-		mgl32.Vec4{halfSize, halfSize, -halfSize, 1},
-		mgl32.Vec4{-halfSize, halfSize, -halfSize, 1},
+		// Передняя грань (красный)
+		{-0.5, -0.5, 0.5, 1},
+		{0.5, -0.5, 0.5, 1},
+		{0.5, 0.5, 0.5, 1},
+		{-0.5, 0.5, 0.5, 1},
 
-		mgl32.Vec4{-halfSize, -halfSize, halfSize, 1},
-		mgl32.Vec4{halfSize, -halfSize, halfSize, 1},
-		mgl32.Vec4{halfSize, halfSize, halfSize, 1},
-		mgl32.Vec4{-halfSize, halfSize, halfSize, 1},
+		// Задняя грань (зеленый)
+		{-0.5, -0.5, -0.5, 1},
+		{0.5, -0.5, -0.5, 1},
+		{0.5, 0.5, -0.5, 1},
+		{-0.5, 0.5, -0.5, 1},
+
+		// Левая грань (синий)
+		{-0.5, -0.5, -0.5, 1},
+		{-0.5, -0.5, 0.5, 1},
+		{-0.5, 0.5, 0.5, 1},
+		{-0.5, 0.5, -0.5, 1},
+
+		// Правая грань (желтый)
+		{0.5, -0.5, 0.5, 1},
+		{0.5, -0.5, -0.5, 1},
+		{0.5, 0.5, -0.5, 1},
+		{0.5, 0.5, 0.5, 1},
+
+		// Верхняя грань (пурпурный)
+		{-0.5, 0.5, 0.5, 1},
+		{0.5, 0.5, 0.5, 1},
+		{0.5, 0.5, -0.5, 1},
+		{-0.5, 0.5, -0.5, 1},
+
+		// Нижняя грань (голубой)
+		{-0.5, -0.5, -0.5, 1},
+		{0.5, -0.5, -0.5, 1},
+		{0.5, -0.5, 0.5, 1},
+		{-0.5, -0.5, 0.5, 1},
 	}
+
+	colors := []rune{
+		'░', '░', '░', '░', '▒', '▒', '▒', '▒', '▓', '▓', '▓', '▓', '█', '█', '█', '█', '▒', '▒', '▒', '▓', '░', '░', '░', '░',
+	}
+
+	var polys = []mesh_controller.Polygon{
+		{VerticesIndices: [3]int{0, 1, 2}},
+		{VerticesIndices: [3]int{0, 2, 3}},
+		{VerticesIndices: [3]int{4, 5, 6}},
+		{VerticesIndices: [3]int{4, 6, 7}},
+		{VerticesIndices: [3]int{8, 9, 10}},
+		{VerticesIndices: [3]int{8, 10, 11}},
+		{VerticesIndices: [3]int{12, 13, 14}},
+		{VerticesIndices: [3]int{12, 14, 15}},
+		{VerticesIndices: [3]int{16, 17, 18}},
+		{VerticesIndices: [3]int{16, 18, 19}},
+		{VerticesIndices: [3]int{20, 21, 22}},
+		{VerticesIndices: [3]int{20, 22, 23}},
+	}
+
+	mesh := mesh_controller.Mesh{RawVertices: rawVertices, Polygons: polys, Colors: colors}
 
 	meshController := mesh_controller.Init()
-	meshController.AddVerticesToMesh(rawVertices)
+	meshController.AddMesh(&mesh)
 
 	cameraController := camera_controller.Init()
-	cameraController.SetPos(0, 0, 5)
-
-	//TODO общую структуру для вершин
-	colors := []rune{
-		'░', '▒', '▓', '█', '╳', '│', '┼', 'O',
-	}
-
-	polys := [][]int{
-		{0, 1, 2}, {0, 2, 3}, {1, 5, 6}, {1, 6, 2},
-		{5, 4, 7}, {5, 7, 6}, {4, 0, 3}, {4, 3, 7},
-		{3, 2, 6}, {3, 6, 7}, {4, 5, 1}, {4, 1, 0},
-	}
+	cameraController.SetPos(0, 0, 2)
 
 	ticker := time.NewTicker(16 * time.Millisecond) // ~60 FPS
 	defer ticker.Stop()
@@ -51,7 +86,7 @@ func main() {
 	for {
 		select {
 		case <-ticker.C:
-			input_contoller.HandleInputKeys(cameraController)
+			tick = input_contoller.HandleInputKeys(tick, cameraController)
 			viewPortController.Clear()
 			windowWidth, windowHeight := viewPortController.GetWindowSize()
 
@@ -67,8 +102,10 @@ func main() {
 			}
 
 			meshController.ProcessVertices(cameraController, windowWidth, windowHeight, tick%360)
-			tick = tick + 1
-			rasterization_contoller.ScanlineRasterization(polys, meshController.GetProjectedVertices(), zbuff, colors, viewPortController)
+			rasterization_contoller.ScanlineRasterization(meshController.Meshes()[0], zbuff, viewPortController)
+			for i := 0; i < len(meshController.Meshes()[0].ProjectedVertices); i = i + 1 {
+				viewPortController.SetChar(int(meshController.Meshes()[0].ProjectedVertices[i].XScreen()), int(meshController.Meshes()[0].ProjectedVertices[i].YScreen()), '*')
+			}
 			viewPortController.Flush()
 		}
 	}

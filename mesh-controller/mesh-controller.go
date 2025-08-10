@@ -30,7 +30,7 @@ func Init() *MeshController {
 
 func (m *MeshController) ProcessVertices(camera *camera_controller.CameraController, windowWidth, windowHeight int, tick int) {
 	xCamera, yCamera, zCamera := camera.GetPos()
-	model := mvp.MakeModelMatrix(0., 0., 0., 1., 1., 1., float32(tick)*(math.Pi/200.0))
+	model := mvp.MakeModelMatrix(0., 0., 0., 1., 1., 1., float32(tick)*(math.Pi/180.0))
 	view := mvp.MakeViewMatrix(xCamera, yCamera, zCamera, 0)
 	proj := mvp.MakePerspectiveProjection(60, float32(windowWidth)*0.6/float32(windowHeight), 0.1, 100)
 

@@ -103,9 +103,9 @@ func main() {
 
 			meshController.ProcessVertices(cameraController, windowWidth, windowHeight, tick%360)
 			rasterization_contoller.ScanlineRasterization(meshController.Meshes()[0], zbuff, viewPortController)
-			for i := 0; i < len(meshController.Meshes()[0].ProjectedVertices); i = i + 1 {
+			/*for i := 0; i < len(meshController.Meshes()[0].ProjectedVertices); i = i + 1 {
 				viewPortController.SetChar(int(meshController.Meshes()[0].ProjectedVertices[i].XScreen()), int(meshController.Meshes()[0].ProjectedVertices[i].YScreen()), '*')
-			}
+			}*/
 			viewPortController.Flush()
 		}
 	}

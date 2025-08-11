@@ -3,16 +3,25 @@ package rasterization
 import (
 	"AsciiRenderer/mesh"
 	"AsciiRenderer/viewport"
+	"github.com/go-gl/mathgl/mgl32"
 	"math"
 	"sort"
 )
 
 // TODO сделать обьектом
-func ScanlineRasterization(mesh *mesh.Mesh, zbuff [][]float32, viewPortController *viewport.ViewPortController) {
+func ScanlineRasterization(mesh *mesh.Mesh,
+	zbuff [][]float32,
+	viewPortController *viewport.ViewPortController,
+	lightRay mgl32.Vec3,
+	colorMap []rune) {
 	for i := 0; i < len(mesh.Polygons); i++ {
 		p0 := mesh.ProjectedVertices[mesh.Polygons[i][0]]
 		p1 := mesh.ProjectedVertices[mesh.Polygons[i][1]]
 		p2 := mesh.ProjectedVertices[mesh.Polygons[i][2]]
+
+		n0 := mesh.ProcessedNormals[mesh.Polygons[i][0]]
+		n1 := mesh.ProcessedNormals[mesh.Polygons[i][1]]
+		n2 := mesh.ProcessedNormals[mesh.Polygons[i][2]]
 
 		minY, maxY := math.Min(float64(p0.YScreen()), math.Min(float64(p1.YScreen()), float64(p2.YScreen()))),
 			math.Max(float64(p0.YScreen()), math.Max(float64(p1.YScreen()), float64(p2.YScreen())))
@@ -41,34 +50,10 @@ func ScanlineRasterization(mesh *mesh.Mesh, zbuff [][]float32, viewPortControlle
 
 					if x >= 0 && y >= 0 && wp > zbuff[x][y] {
 						zbuff[x][y] = wp
-
-						/*if x == xStart {
-							viewPortController.SetChar(xStart, y, '|')
-							continue
-						}
-
-						if x == xEnd {
-							viewPortController.SetChar(xEnd, y, '|')
-							continue
-						}*/
-
-						px3d := (u*p0.XCam()/p0.WClip() + v*p1.XCam()/p1.WClip() + w*p2.XCam()/p2.WClip()) / wp // Учитываем перспективное искажение
-						py3d := (u*p0.YCam()/p0.WClip() + v*p1.YCam()/p1.WClip() + w*p2.YCam()/p2.WClip()) / wp
-						pz3d := (u*p0.ZCam()/p0.WClip() + v*p1.ZCam()/p1.WClip() + w*p2.ZCam()/p2.WClip()) / wp
-						d0 := (p0.XCam()-px3d)*(p0.XCam()-px3d) + (p0.YCam()-py3d)*(p0.YCam()-py3d) + (p0.ZCam()-pz3d)*(p0.ZCam()-pz3d)
-						d1 := (p1.XCam()-px3d)*(p1.XCam()-px3d) + (p1.YCam()-py3d)*(p1.YCam()-py3d) + (p1.ZCam()-pz3d)*(p1.ZCam()-pz3d)
-						d2 := (p2.XCam()-px3d)*(p2.XCam()-px3d) + (p2.YCam()-py3d)*(p2.YCam()-py3d) + (p2.ZCam()-pz3d)*(p2.ZCam()-pz3d)
-
-						var char rune
-						if d0 < d1 && d0 < d2 {
-							char = mesh.Colors[mesh.Polygons[i][0]]
-						} else if d1 < d0 && d1 < d2 {
-							char = mesh.Colors[mesh.Polygons[i][1]]
-						} else {
-							char = mesh.Colors[mesh.Polygons[i][2]]
-						}
-
-						viewPortController.SetChar(x, y, char)
+						un := n0.Mul(u).Add(n1.Mul(v)).Add(n2.Mul(w)).Normalize()
+						//TODO учесть дистанцию от источника света
+						intensity := (lightRay.Dot(mgl32.Vec3{un.X(), un.Y(), un.Z()}) + 1.0) / 2.0
+						viewPortController.SetChar(x, y, colorMap[int(intensity*float32(len(colorMap)-1))])
 					}
 				}
 			}
@@ -102,7 +87,7 @@ type Intersection struct {
 	edgeKey          [2]int
 }
 
-func addEdgeIntersection(intersections []Intersection, p0 *mesh.ProjectedVertex, p1 *mesh.ProjectedVertex, p0Idx, p1Idx int, y float32) []Intersection {
+func addEdgeIntersection(intersections []Intersection, p0 *mesh.ProcessedVertex, p1 *mesh.ProcessedVertex, p0Idx, p1Idx int, y float32) []Intersection {
 	if (p0.YScreen() <= y && p1.YScreen() >= y) || (p1.YScreen() <= y && p0.YScreen() >= y) {
 		alpha := (y - p0.YScreen()) / (p1.YScreen() - p0.YScreen())
 		interpolatedX := p0.XScreen() + (p1.XScreen()-p0.XScreen())*alpha

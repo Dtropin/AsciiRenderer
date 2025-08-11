@@ -27,29 +27,41 @@ func main() {
 	}
 	scanner := bufio.NewScanner(file)
 	rawVertices := make([]mgl32.Vec4, 0)
+	normals := make([]mgl32.Vec4, 0)
 	colors := make([]rune, 0)
 	colors = append(colors, '#') // cuz of numeration of vertices in teapot.obj
 	polys := make([][3]int, 0)
-	colormap := []rune{
-		'░', '░', '░', '░',
+	colorMap := []rune{
+		'░', '▒', '▓', '█',
 	}
 	i := 0
 	for scanner.Scan() {
 		line := strings.Split(scanner.Text(), " ")
+
+		if strings.HasPrefix(line[0], "vn") {
+			x, _ := strconv.ParseFloat(line[1], 32)
+			y, _ := strconv.ParseFloat(line[2], 32)
+			z, _ := strconv.ParseFloat(line[3], 32)
+			normals = append(normals, mgl32.Vec4{float32(x), float32(y), float32(z), 0})
+			continue
+		}
+
 		if line[0][0] == 'v' {
 			x, _ := strconv.ParseFloat(line[1], 32)
 			y, _ := strconv.ParseFloat(line[2], 32)
 			z, _ := strconv.ParseFloat(line[3], 32)
 			rawVertices = append(rawVertices, mgl32.Vec4{float32(x), float32(y), float32(z), 1})
-			colors = append(colors, colormap[i%len(colormap)])
+			i++
+			continue
 		}
+
 		if line[0][0] == 'f' {
-			v1, _ := strconv.ParseInt(line[1], 10, 32)
-			v2, _ := strconv.ParseInt(line[2], 10, 32)
-			v3, _ := strconv.ParseInt(line[3], 10, 32)
+			v1, _ := strconv.ParseInt(strings.Split(line[1], "//")[0], 10, 32)
+			v2, _ := strconv.ParseInt(strings.Split(line[2], "//")[0], 10, 32)
+			v3, _ := strconv.ParseInt(strings.Split(line[3], "//")[0], 10, 32)
 			polys = append(polys, [3]int{int(v1 - 1), int(v2 - 1), int(v3 - 1)})
+			continue
 		}
-		i++
 	}
 	ferr = file.Close()
 	if ferr != nil {
@@ -57,11 +69,10 @@ func main() {
 		return
 	}
 
-	teapotMesh := mesh.Mesh{RawVertices: rawVertices, Polygons: polys, Colors: colors}
+	teapotMesh := mesh.Mesh{RawVertices: rawVertices, RawNormals: normals, Polygons: polys}
 
 	meshController := mesh.Init()
 	meshController.AddMesh(&teapotMesh)
-
 	cameraController := cameracontroller.Init()
 	cameraController.SetPos(0, 2, 10)
 
@@ -89,8 +100,8 @@ func main() {
 				}
 			}
 
-			meshController.ProcessVertices(cameraController, windowWidth, windowHeight, tick%360)
-			rasterization.ScanlineRasterization(meshController.Meshes()[0], zbuff, viewPortController)
+			light := meshController.ProcessVertices(cameraController, windowWidth, windowHeight, tick%360)
+			rasterization.ScanlineRasterization(meshController.Meshes()[0], zbuff, viewPortController, light, colorMap)
 			viewPortController.Flush()
 		}
 	}

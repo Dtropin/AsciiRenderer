@@ -6,16 +6,12 @@ type Mesh struct {
 	RawVertices       []mgl32.Vec4
 	ProjectedVertices []ProjectedVertex
 	Colors            []rune
-	Polygons          []Polygon //todo Будто бы лишняя структура
+	Polygons          [][3]int
 	OutlineEdges      map[[2]int]int
 }
 
 type ProjectedVertex struct {
 	xScreen, yScreen, xSource, ySource, zSource, xCam, yCam, zCam, wClip float32
-}
-
-type Polygon struct {
-	VerticesIndices [3]int
 }
 
 func (p *ProjectedVertex) XCam() float32 {

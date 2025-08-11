@@ -60,12 +60,12 @@ func (m *MeshController) AddMesh(mesh *Mesh) {
 	mesh.OutlineEdges = make(map[[2]int]int)
 
 	for i := 0; i < len(mesh.Polygons); i++ {
-		key0 := [2]int{int(math.Min(float64(mesh.Polygons[i].VerticesIndices[0]), float64(mesh.Polygons[i].VerticesIndices[1]))),
-			int(math.Max(float64(mesh.Polygons[i].VerticesIndices[0]), float64(mesh.Polygons[i].VerticesIndices[1])))}
-		key1 := [2]int{int(math.Min(float64(mesh.Polygons[i].VerticesIndices[1]), float64(mesh.Polygons[i].VerticesIndices[2]))),
-			int(math.Max(float64(mesh.Polygons[i].VerticesIndices[1]), float64(mesh.Polygons[i].VerticesIndices[2])))}
-		key2 := [2]int{int(math.Min(float64(mesh.Polygons[i].VerticesIndices[0]), float64(mesh.Polygons[i].VerticesIndices[2]))),
-			int(math.Max(float64(mesh.Polygons[i].VerticesIndices[0]), float64(mesh.Polygons[i].VerticesIndices[2])))}
+		key0 := [2]int{int(math.Min(float64(mesh.Polygons[i][0]), float64(mesh.Polygons[i][1]))),
+			int(math.Max(float64(mesh.Polygons[i][0]), float64(mesh.Polygons[i][1])))}
+		key1 := [2]int{int(math.Min(float64(mesh.Polygons[i][1]), float64(mesh.Polygons[i][2]))),
+			int(math.Max(float64(mesh.Polygons[i][1]), float64(mesh.Polygons[i][2])))}
+		key2 := [2]int{int(math.Min(float64(mesh.Polygons[i][0]), float64(mesh.Polygons[i][2]))),
+			int(math.Max(float64(mesh.Polygons[i][0]), float64(mesh.Polygons[i][2])))}
 		mesh.OutlineEdges[key0]++
 		mesh.OutlineEdges[key1]++
 		mesh.OutlineEdges[key2]++

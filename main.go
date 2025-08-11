@@ -4,85 +4,72 @@ import (
 	"AsciiRenderer/cameracontroller"
 	"AsciiRenderer/inputcontoller"
 	"AsciiRenderer/mesh"
-	rasterization_contoller "AsciiRenderer/rasterization"
-	render_context "AsciiRenderer/viewport"
+	"AsciiRenderer/rasterization"
+	"AsciiRenderer/viewport"
+	"bufio"
 	"github.com/go-gl/mathgl/mgl32"
+	"log"
 	"math"
+	"os"
+	"strconv"
+	"strings"
 	"time"
 )
 
 func main() {
-	viewPortController := render_context.Init()
+	viewPortController := viewport.Init()
 	defer viewPortController.Close()
 
-	rawVertices := []mgl32.Vec4{
-		// Передняя грань (красный)
-		{-0.5, -0.5, 0.5, 1},
-		{0.5, -0.5, 0.5, 1},
-		{0.5, 0.5, 0.5, 1},
-		{-0.5, 0.5, 0.5, 1},
-
-		// Задняя грань (зеленый)
-		{-0.5, -0.5, -0.5, 1},
-		{0.5, -0.5, -0.5, 1},
-		{0.5, 0.5, -0.5, 1},
-		{-0.5, 0.5, -0.5, 1},
-
-		// Левая грань (синий)
-		{-0.5, -0.5, -0.5, 1},
-		{-0.5, -0.5, 0.5, 1},
-		{-0.5, 0.5, 0.5, 1},
-		{-0.5, 0.5, -0.5, 1},
-
-		// Правая грань (желтый)
-		{0.5, -0.5, 0.5, 1},
-		{0.5, -0.5, -0.5, 1},
-		{0.5, 0.5, -0.5, 1},
-		{0.5, 0.5, 0.5, 1},
-
-		// Верхняя грань (пурпурный)
-		{-0.5, 0.5, 0.5, 1},
-		{0.5, 0.5, 0.5, 1},
-		{0.5, 0.5, -0.5, 1},
-		{-0.5, 0.5, -0.5, 1},
-
-		// Нижняя грань (голубой)
-		{-0.5, -0.5, -0.5, 1},
-		{0.5, -0.5, -0.5, 1},
-		{0.5, -0.5, 0.5, 1},
-		{-0.5, -0.5, 0.5, 1},
+	file, ferr := os.Open("teapot.obj")
+	if ferr != nil {
+		log.Fatalf("Error opening file: %v", ferr)
+		return
+	}
+	scanner := bufio.NewScanner(file)
+	rawVertices := make([]mgl32.Vec4, 0)
+	colors := make([]rune, 0)
+	colors = append(colors, '#') // cuz of numeration of vertices in teapot.obj
+	polys := make([][3]int, 0)
+	colormap := []rune{
+		'░', '░', '░', '░',
+	}
+	i := 0
+	for scanner.Scan() {
+		line := strings.Split(scanner.Text(), " ")
+		if line[0][0] == 'v' {
+			x, _ := strconv.ParseFloat(line[1], 32)
+			y, _ := strconv.ParseFloat(line[2], 32)
+			z, _ := strconv.ParseFloat(line[3], 32)
+			rawVertices = append(rawVertices, mgl32.Vec4{float32(x), float32(y), float32(z), 1})
+			colors = append(colors, colormap[i%len(colormap)])
+		}
+		if line[0][0] == 'f' {
+			v1, _ := strconv.ParseInt(line[1], 10, 32)
+			v2, _ := strconv.ParseInt(line[2], 10, 32)
+			v3, _ := strconv.ParseInt(line[3], 10, 32)
+			polys = append(polys, [3]int{int(v1 - 1), int(v2 - 1), int(v3 - 1)})
+		}
+		i++
+	}
+	ferr = file.Close()
+	if ferr != nil {
+		log.Fatalf("Error closening file: %v", ferr)
+		return
 	}
 
-	colors := []rune{
-		'░', '░', '░', '░', '▒', '▒', '▒', '▒', '▓', '▓', '▓', '▓', '█', '█', '█', '█', '▒', '▒', '▒', '▓', '░', '░', '░', '░',
-	}
-
-	var polys = []mesh.Polygon{
-		{VerticesIndices: [3]int{0, 1, 2}},
-		{VerticesIndices: [3]int{0, 2, 3}},
-		{VerticesIndices: [3]int{4, 5, 6}},
-		{VerticesIndices: [3]int{4, 6, 7}},
-		{VerticesIndices: [3]int{8, 9, 10}},
-		{VerticesIndices: [3]int{8, 10, 11}},
-		{VerticesIndices: [3]int{12, 13, 14}},
-		{VerticesIndices: [3]int{12, 14, 15}},
-		{VerticesIndices: [3]int{16, 17, 18}},
-		{VerticesIndices: [3]int{16, 18, 19}},
-		{VerticesIndices: [3]int{20, 21, 22}},
-		{VerticesIndices: [3]int{20, 22, 23}},
-	}
-
-	cubeMesh := mesh.Mesh{RawVertices: rawVertices, Polygons: polys, Colors: colors}
+	teapotMesh := mesh.Mesh{RawVertices: rawVertices, Polygons: polys, Colors: colors}
 
 	meshController := mesh.Init()
-	meshController.AddMesh(&cubeMesh)
+	meshController.AddMesh(&teapotMesh)
 
 	cameraController := cameracontroller.Init()
-	cameraController.SetPos(0, 0, 2)
+	cameraController.SetPos(0, 2, 10)
 
 	ticker := time.NewTicker(16 * time.Millisecond) // ~60 FPS
 	defer ticker.Stop()
 	var tick = 0
+	var zbuff [][]float32
+
 	for {
 		select {
 		case <-ticker.C:
@@ -90,19 +77,20 @@ func main() {
 			viewPortController.Clear()
 			windowWidth, windowHeight := viewPortController.GetWindowSize()
 
-			//TODO отслеживать изменения окна и если было - пересоздавать буфер
-			w, h := viewPortController.GetWindowSize()
-			zbuff := make([][]float32, w+1)
+			//todo zbuff obj?
+			if zbuff == nil || len(zbuff) != windowWidth || len(zbuff[0]) != windowHeight {
+				zbuff = make([][]float32, windowWidth+1)
 
-			for i := 0; i < w+1; i++ {
-				zbuff[i] = make([]float32, h+1)
-				for j := 0; j < h+1; j++ {
-					zbuff[i][j] = -math.MaxFloat32
+				for i := 0; i < windowWidth+1; i++ {
+					zbuff[i] = make([]float32, windowHeight+1)
+					for j := 0; j < windowHeight+1; j++ {
+						zbuff[i][j] = -math.MaxFloat32
+					}
 				}
 			}
 
 			meshController.ProcessVertices(cameraController, windowWidth, windowHeight, tick%360)
-			rasterization_contoller.ScanlineRasterization(meshController.Meshes()[0], zbuff, viewPortController)
+			rasterization.ScanlineRasterization(meshController.Meshes()[0], zbuff, viewPortController)
 			viewPortController.Flush()
 		}
 	}

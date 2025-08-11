@@ -1,4 +1,4 @@
-package mesh_controller
+package mesh
 
 import "github.com/go-gl/mathgl/mgl32"
 

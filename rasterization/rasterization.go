@@ -1,14 +1,14 @@
-package rasterization_contoller
+package rasterization
 
 import (
-	mesh_controller "AsciiRenderer/mesh-controller"
-	render_context "AsciiRenderer/terminal-context"
+	"AsciiRenderer/mesh"
+	"AsciiRenderer/viewport"
 	"math"
 	"sort"
 )
 
 // TODO сделать обьектом
-func ScanlineRasterization(mesh *mesh_controller.Mesh, zbuff [][]float32, viewPortController *render_context.ViewPortController) {
+func ScanlineRasterization(mesh *mesh.Mesh, zbuff [][]float32, viewPortController *viewport.ViewPortController) {
 	for i := 0; i < len(mesh.Polygons); i++ {
 		p0 := mesh.ProjectedVertices[mesh.Polygons[i].VerticesIndices[0]]
 		p1 := mesh.ProjectedVertices[mesh.Polygons[i].VerticesIndices[1]]
@@ -102,7 +102,7 @@ type Intersection struct {
 	edgeKey          [2]int
 }
 
-func addEdgeIntersection(intersections []Intersection, p0 *mesh_controller.ProjectedVertex, p1 *mesh_controller.ProjectedVertex, p0Idx, p1Idx int, y float32) []Intersection {
+func addEdgeIntersection(intersections []Intersection, p0 *mesh.ProjectedVertex, p1 *mesh.ProjectedVertex, p0Idx, p1Idx int, y float32) []Intersection {
 	if (p0.YScreen() <= y && p1.YScreen() >= y) || (p1.YScreen() <= y && p0.YScreen() >= y) {
 		alpha := (y - p0.YScreen()) / (p1.YScreen() - p0.YScreen())
 		interpolatedX := p0.XScreen() + (p1.XScreen()-p0.XScreen())*alpha

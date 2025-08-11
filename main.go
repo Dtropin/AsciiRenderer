@@ -1,11 +1,11 @@
 package main
 
 import (
-	camera_controller "AsciiRenderer/camera-controller"
-	input_contoller "AsciiRenderer/input-contoller"
-	"AsciiRenderer/mesh-controller"
-	rasterization_contoller "AsciiRenderer/rasterization-contoller"
-	render_context "AsciiRenderer/terminal-context"
+	"AsciiRenderer/cameracontroller"
+	"AsciiRenderer/inputcontoller"
+	"AsciiRenderer/mesh"
+	rasterization_contoller "AsciiRenderer/rasterization"
+	render_context "AsciiRenderer/viewport"
 	"github.com/go-gl/mathgl/mgl32"
 	"math"
 	"time"
@@ -57,7 +57,7 @@ func main() {
 		'░', '░', '░', '░', '▒', '▒', '▒', '▒', '▓', '▓', '▓', '▓', '█', '█', '█', '█', '▒', '▒', '▒', '▓', '░', '░', '░', '░',
 	}
 
-	var polys = []mesh_controller.Polygon{
+	var polys = []mesh.Polygon{
 		{VerticesIndices: [3]int{0, 1, 2}},
 		{VerticesIndices: [3]int{0, 2, 3}},
 		{VerticesIndices: [3]int{4, 5, 6}},
@@ -72,12 +72,12 @@ func main() {
 		{VerticesIndices: [3]int{20, 22, 23}},
 	}
 
-	mesh := mesh_controller.Mesh{RawVertices: rawVertices, Polygons: polys, Colors: colors}
+	cubeMesh := mesh.Mesh{RawVertices: rawVertices, Polygons: polys, Colors: colors}
 
-	meshController := mesh_controller.Init()
-	meshController.AddMesh(&mesh)
+	meshController := mesh.Init()
+	meshController.AddMesh(&cubeMesh)
 
-	cameraController := camera_controller.Init()
+	cameraController := cameracontroller.Init()
 	cameraController.SetPos(0, 0, 2)
 
 	ticker := time.NewTicker(16 * time.Millisecond) // ~60 FPS
@@ -86,7 +86,7 @@ func main() {
 	for {
 		select {
 		case <-ticker.C:
-			tick = input_contoller.HandleInputKeys(tick, cameraController)
+			tick = inputcontoller.HandleInputKeys(tick, cameraController)
 			viewPortController.Clear()
 			windowWidth, windowHeight := viewPortController.GetWindowSize()
 
@@ -103,9 +103,6 @@ func main() {
 
 			meshController.ProcessVertices(cameraController, windowWidth, windowHeight, tick%360)
 			rasterization_contoller.ScanlineRasterization(meshController.Meshes()[0], zbuff, viewPortController)
-			/*for i := 0; i < len(meshController.Meshes()[0].ProjectedVertices); i = i + 1 {
-				viewPortController.SetChar(int(meshController.Meshes()[0].ProjectedVertices[i].XScreen()), int(meshController.Meshes()[0].ProjectedVertices[i].YScreen()), '*')
-			}*/
 			viewPortController.Flush()
 		}
 	}

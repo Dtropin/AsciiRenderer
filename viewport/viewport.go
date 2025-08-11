@@ -1,4 +1,4 @@
-package render_context
+package viewport
 
 import (
 	"github.com/gdamore/tcell/v2"

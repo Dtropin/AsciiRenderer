@@ -1,4 +1,4 @@
-package camera_controller
+package cameracontroller
 
 import "sync"
 

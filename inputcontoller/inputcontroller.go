@@ -19,16 +19,26 @@ func isKeyPressed(vKey int) bool {
 
 func HandleInputKeys(tick int, controller *cameracontroller.CameraController) int {
 	if isKeyPressed(0x41) {
-		controller.AdjustPos(-0.1, 0, 0.)
+		//a
 	}
 	if isKeyPressed(0x57) {
-		controller.AdjustPos(0, 0, -0.1)
+		//s
+		controller.Forward(0.1)
 	}
 	if isKeyPressed(0x53) {
-		controller.AdjustPos(0, 0, 0.1)
+		//w
+		controller.Back(0.1)
 	}
 	if isKeyPressed(0x44) {
-		controller.AdjustPos(0.1, 0, 0.)
+		//d
+	}
+	if isKeyPressed(0x52) {
+		//r
+		controller.Up(0.1)
+	}
+	if isKeyPressed(0x46) {
+		//f
+		controller.Down(0.1)
 	}
 	if isKeyPressed(0x51) {
 		tick++

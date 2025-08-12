@@ -5,9 +5,10 @@ import "github.com/go-gl/mathgl/mgl32"
 type Mesh struct {
 	RawVertices       []mgl32.Vec4
 	RawNormals        []mgl32.Vec4
-	ProcessedNormals  []mgl32.Vec4
-	ProjectedVertices []ProcessedVertex
-	Polygons          [][3]int
+	ProcessedNormals  []mgl32.Vec3
+	ProcessedVertices []ProcessedVertex
+	Polys             [][3]int
+	PolysNormals      [][3]int
 }
 
 type ProcessedVertex struct {

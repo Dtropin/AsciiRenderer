@@ -14,14 +14,14 @@ func ScanlineRasterization(mesh *mesh.Mesh,
 	viewPortController *viewport.ViewPortController,
 	lightRay mgl32.Vec3,
 	colorMap []rune) {
-	for i := 0; i < len(mesh.Polygons); i++ {
-		p0 := mesh.ProjectedVertices[mesh.Polygons[i][0]]
-		p1 := mesh.ProjectedVertices[mesh.Polygons[i][1]]
-		p2 := mesh.ProjectedVertices[mesh.Polygons[i][2]]
+	for i := 0; i < len(mesh.Polys); i++ {
+		p0 := mesh.ProcessedVertices[mesh.Polys[i][0]]
+		p1 := mesh.ProcessedVertices[mesh.Polys[i][1]]
+		p2 := mesh.ProcessedVertices[mesh.Polys[i][2]]
 
-		n0 := mesh.ProcessedNormals[mesh.Polygons[i][0]]
-		n1 := mesh.ProcessedNormals[mesh.Polygons[i][1]]
-		n2 := mesh.ProcessedNormals[mesh.Polygons[i][2]]
+		n0 := mesh.ProcessedNormals[mesh.PolysNormals[i][0]]
+		n1 := mesh.ProcessedNormals[mesh.PolysNormals[i][1]]
+		n2 := mesh.ProcessedNormals[mesh.PolysNormals[i][2]]
 
 		minY, maxY := math.Min(float64(p0.YScreen()), math.Min(float64(p1.YScreen()), float64(p2.YScreen()))),
 			math.Max(float64(p0.YScreen()), math.Max(float64(p1.YScreen()), float64(p2.YScreen())))
@@ -32,9 +32,9 @@ func ScanlineRasterization(mesh *mesh.Mesh,
 
 		for y := int(minY); y <= int(maxY); y++ {
 			var intersections = make([]Intersection, 0)
-			intersections = addEdgeIntersection(intersections, &p0, &p1, mesh.Polygons[i][0], mesh.Polygons[i][1], float32(y))
-			intersections = addEdgeIntersection(intersections, &p0, &p2, mesh.Polygons[i][0], mesh.Polygons[i][2], float32(y))
-			intersections = addEdgeIntersection(intersections, &p1, &p2, mesh.Polygons[i][1], mesh.Polygons[i][2], float32(y))
+			intersections = addEdgeIntersection(intersections, &p0, &p1, mesh.Polys[i][0], mesh.Polys[i][1], float32(y))
+			intersections = addEdgeIntersection(intersections, &p0, &p2, mesh.Polys[i][0], mesh.Polys[i][2], float32(y))
+			intersections = addEdgeIntersection(intersections, &p1, &p2, mesh.Polys[i][1], mesh.Polys[i][2], float32(y))
 
 			sort.Slice(intersections, func(a, b int) bool {
 				return intersections[a].interpolatedX < intersections[b].interpolatedX

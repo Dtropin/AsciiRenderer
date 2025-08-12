@@ -9,6 +9,14 @@ type Mesh struct {
 	ProcessedVertices []ProcessedVertex
 	Polys             [][3]int
 	PolysNormals      [][3]int
+	ModelMatrix       mgl32.Mat4
+	Pos               mgl32.Vec3
+	Scale             mgl32.Vec3
+	AngleRad          float32
+}
+
+func (mesh *Mesh) UpdateModelMatrix() {
+	mesh.ModelMatrix = mgl32.Translate3D(mesh.Pos.X(), mesh.Pos.Y(), mesh.Pos.Z()).Mul4(mgl32.HomogRotate3D(mesh.AngleRad, [3]float32{1., 0., 0.})).Mul4(mgl32.HomogRotate3D(mesh.AngleRad, [3]float32{0., 1., 0.})).Mul4(mgl32.Scale3D(mesh.Scale.X(), mesh.Scale.Y(), mesh.Scale.Z()))
 }
 
 type ProcessedVertex struct {
@@ -35,9 +43,7 @@ func (p *ProcessedVertex) YSource() float32 {
 	return p.ySource
 }
 
-func (p *ProcessedVertex) ZSource() float32 {
-	return p.zSource
-}
+func (p *ProcessedVertex) ZSource() float32 { return p.zSource }
 
 func (p *ProcessedVertex) XScreen() float32 {
 	return p.xScreen

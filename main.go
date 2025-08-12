@@ -32,9 +32,6 @@ func main() {
 	colors = append(colors, '#') // cuz of numeration of vertices in teapot.obj
 	polys := make([][3]int, 0)
 	polysNormals := make([][3]int, 0)
-	colorMap := []rune{
-		'$', '@', 'B', '%', '8', '&', 'W', 'M', '#', '*', 'o', 'a', 'h', 'k', 'b', 'd', 'p', 'q', 'w', 'm', 'Z', 'O', '0', 'Q', 'L', 'C', 'J', 'U', 'Y', 'X', 'z', 'c', 'v', 'u', 'n', 'x', 'r', 'j', 'f', 't', '/', '\\', '|', '(', ')', '1', '{', '}', '[', ']', '?', '-', '_', '+', '~', '<', '>', 'i', '!', 'l', 'I', ';', ':', ',', '.', '"', '^', '`', '\'',
-	}
 	i := 0
 	for scanner.Scan() {
 		line := strings.Split(scanner.Text(), " ")
@@ -75,38 +72,36 @@ func main() {
 		return
 	}
 
-	teapotMesh := mesh.Mesh{RawVertices: rawVertices, RawNormals: normals, Polys: polys, PolysNormals: polysNormals}
+	teapotMesh := mesh.Mesh{RawVertices: rawVertices, RawNormals: normals, Polys: polys, PolysNormals: polysNormals,
+		Pos: mgl32.Vec3{0., -2., 0}, Scale: mgl32.Vec3{1., 1., 1.}, AngleRad: 0.0}
 
 	meshController := mesh.Init()
 	meshController.AddMesh(&teapotMesh)
+
 	cameraController := cameracontroller.Init()
 
-	ticker := time.NewTicker(16 * time.Millisecond) // ~60 FPS
+	colorMap := []rune{
+		'$', '@', 'B', '%', '8', '&', 'W', 'M', '#', '*', 'o', 'a', 'h', 'k', 'b', 'd', 'p', 'q', 'w', 'm', 'Z', 'O', '0', 'Q', 'L', 'C', 'J', 'U', 'Y', 'X', 'z', 'c', 'v', 'u', 'n', 'x', 'r', 'j', 'f', 't', '/', '\\', '|', '(', ')', '1', '{', '}', '[', ']', '?', '-', '_', '+', '~', '<', '>', 'i', '!', 'l', 'I', ';', ':', ',', '.', '"', '^', '`', '\'',
+	}
+
+	rasterizer := rasterization.Init(colorMap, viewPortController)
+
+	ticker := time.NewTicker(16 * time.Millisecond)
 	defer ticker.Stop()
+
 	var tick = 0
-	var zbuff [][]float32
 
 	for {
 		select {
 		case <-ticker.C:
 			tick = inputcontoller.HandleInputKeys(tick, cameraController)
+
 			viewPortController.Clear()
-			windowWidth, windowHeight := viewPortController.GetWindowSize()
 
-			//todo zbuff obj?
-			if zbuff == nil || len(zbuff) != windowWidth || len(zbuff[0]) != windowHeight {
-				zbuff = make([][]float32, windowWidth+1)
+			teapotMesh.AngleRad = float32(tick%360) * (math.Pi / 180.0)
 
-				for i := 0; i < windowWidth+1; i++ {
-					zbuff[i] = make([]float32, windowHeight+1)
-					for j := 0; j < windowHeight+1; j++ {
-						zbuff[i][j] = -math.MaxFloat32
-					}
-				}
-			}
-
-			light := meshController.ProcessVertices(cameraController, windowWidth, windowHeight, tick%360)
-			rasterization.ScanlineRasterization(meshController.Meshes()[0], zbuff, viewPortController, light, colorMap)
+			meshController.ProcessVertices(cameraController, viewPortController)
+			rasterizer.ScanlineRasterization(meshController.Meshes(), viewPortController, cameraController)
 			viewPortController.Flush()
 		}
 	}

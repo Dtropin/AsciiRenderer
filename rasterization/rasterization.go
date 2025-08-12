@@ -1,59 +1,91 @@
 package rasterization
 
 import (
+	"AsciiRenderer/cameracontroller"
 	"AsciiRenderer/mesh"
 	"AsciiRenderer/viewport"
 	"github.com/go-gl/mathgl/mgl32"
 	"math"
 	"sort"
+	"sync"
 )
 
-// TODO сделать обьектом
-func ScanlineRasterization(mesh *mesh.Mesh,
-	zbuff [][]float32,
-	viewPortController *viewport.ViewPortController,
-	lightRay mgl32.Vec3,
-	colorMap []rune) {
-	for i := 0; i < len(mesh.Polys); i++ {
-		p0 := mesh.ProcessedVertices[mesh.Polys[i][0]]
-		p1 := mesh.ProcessedVertices[mesh.Polys[i][1]]
-		p2 := mesh.ProcessedVertices[mesh.Polys[i][2]]
+type Rasterizer struct {
+	zbuff    [][]float32
+	colorMap []rune
+}
 
-		n0 := mesh.ProcessedNormals[mesh.PolysNormals[i][0]]
-		n1 := mesh.ProcessedNormals[mesh.PolysNormals[i][1]]
-		n2 := mesh.ProcessedNormals[mesh.PolysNormals[i][2]]
+var (
+	instance *Rasterizer
+	once     sync.Once
+)
 
-		minY, maxY := math.Min(float64(p0.YScreen()), math.Min(float64(p1.YScreen()), float64(p2.YScreen()))),
-			math.Max(float64(p0.YScreen()), math.Max(float64(p1.YScreen()), float64(p2.YScreen())))
+func Init(colorMap []rune, viewPortController *viewport.ViewPortController) *Rasterizer {
+	once.Do(func() {
+		w, h := viewPortController.GetWindowSize()
+		var zbuff = make([][]float32, w+1)
 
-		if minY < 0 {
-			continue
+		for i := 0; i < w+1; i++ {
+			zbuff[i] = make([]float32, h+1)
+			for j := 0; j < h+1; j++ {
+				zbuff[i][j] = -math.MaxFloat32
+			}
 		}
 
-		for y := int(minY); y <= int(maxY); y++ {
-			var intersections = make([]Intersection, 0)
-			intersections = addEdgeIntersection(intersections, &p0, &p1, mesh.Polys[i][0], mesh.Polys[i][1], float32(y))
-			intersections = addEdgeIntersection(intersections, &p0, &p2, mesh.Polys[i][0], mesh.Polys[i][2], float32(y))
-			intersections = addEdgeIntersection(intersections, &p1, &p2, mesh.Polys[i][1], mesh.Polys[i][2], float32(y))
+		instance = &Rasterizer{colorMap: colorMap, zbuff: zbuff}
+	})
+	return instance
+}
 
-			sort.Slice(intersections, func(a, b int) bool {
-				return intersections[a].interpolatedX < intersections[b].interpolatedX
-			})
+func (r *Rasterizer) ScanlineRasterization(meshes []*mesh.Mesh,
+	viewPortController *viewport.ViewPortController, cameraController *cameracontroller.CameraController) {
+	viewPortWidth, viewPortHeight := viewPortController.GetWindowSize()
+	r.clearZBuff(viewPortWidth, viewPortHeight)
+	for k := 0; k < len(meshes); k++ {
+		currentMesh := meshes[k]
+		for i := 0; i < len(currentMesh.Polys); i++ {
+			p0 := currentMesh.ProcessedVertices[currentMesh.Polys[i][0]]
+			p1 := currentMesh.ProcessedVertices[currentMesh.Polys[i][1]]
+			p2 := currentMesh.ProcessedVertices[currentMesh.Polys[i][2]]
 
-			if len(intersections) == 2 {
-				xStart := int(intersections[0].interpolatedX)
-				xEnd := int(intersections[1].interpolatedX)
+			n0 := currentMesh.ProcessedNormals[currentMesh.PolysNormals[i][0]]
+			n1 := currentMesh.ProcessedNormals[currentMesh.PolysNormals[i][1]]
+			n2 := currentMesh.ProcessedNormals[currentMesh.PolysNormals[i][2]]
 
-				for x := xStart; x <= xEnd; x++ {
-					u, v, w := barycentric(x, y, p0.XScreen(), p0.YScreen(), p1.XScreen(), p1.YScreen(), p2.XScreen(), p2.YScreen())
-					wp := u*(1/p0.WClip()) + v*(1/p1.WClip()) + w*(1/p2.WClip())
+			minY, maxY := math.Min(float64(p0.YScreen()), math.Min(float64(p1.YScreen()), float64(p2.YScreen()))),
+				math.Max(float64(p0.YScreen()), math.Max(float64(p1.YScreen()), float64(p2.YScreen())))
 
-					if x >= 0 && y >= 0 && wp > zbuff[x][y] {
-						zbuff[x][y] = wp
-						un := n0.Mul(u).Add(n1.Mul(v)).Add(n2.Mul(w)).Normalize()
-						//TODO учесть дистанцию от источника света
-						intensity := (lightRay.Dot(mgl32.Vec3{un.X(), un.Y(), un.Z()}) + 1.0) / 2.0
-						viewPortController.SetChar(x, y, colorMap[int(intensity*float32(len(colorMap)-1))])
+			if minY < 0 {
+				continue
+			}
+
+			for y := int(minY); y <= int(maxY); y++ {
+				var intersections = make([]Intersection, 0)
+				intersections = addEdgeIntersection(intersections, &p0, &p1, currentMesh.Polys[i][0], currentMesh.Polys[i][1], float32(y))
+				intersections = addEdgeIntersection(intersections, &p0, &p2, currentMesh.Polys[i][0], currentMesh.Polys[i][2], float32(y))
+				intersections = addEdgeIntersection(intersections, &p1, &p2, currentMesh.Polys[i][1], currentMesh.Polys[i][2], float32(y))
+
+				sort.Slice(intersections, func(a, b int) bool {
+					return intersections[a].interpolatedX < intersections[b].interpolatedX
+				})
+
+				if len(intersections) == 2 {
+					xStart := int(intersections[0].interpolatedX)
+					xEnd := int(intersections[1].interpolatedX)
+
+					for x := xStart; x <= xEnd; x++ {
+						u, v, w := barycentric(x, y, p0.XScreen(), p0.YScreen(), p1.XScreen(), p1.YScreen(), p2.XScreen(), p2.YScreen())
+						wp := u*(1/p0.WClip()) + v*(1/p1.WClip()) + w*(1/p2.WClip())
+
+						if x >= 0 && y >= 0 && wp > r.zbuff[x][y] {
+							r.zbuff[x][y] = wp
+							un := n0.Mul(u).Add(n1.Mul(v)).Add(n2.Mul(w)).Normalize()
+							//TODO учесть дистанцию от источника света
+							lightRay := mgl32.Vec3{-cameraController.CameraState().ViewMatrix().At(0, 2),
+								-cameraController.CameraState().ViewMatrix().At(1, 2), -cameraController.CameraState().ViewMatrix().At(2, 2)}.Normalize()
+							intensity := (lightRay.Dot(mgl32.Vec3{un.X(), un.Y(), un.Z()}) + 1.0) / 2.0
+							viewPortController.SetChar(x, y, r.colorMap[int(intensity*float32(len(r.colorMap)-1))])
+						}
 					}
 				}
 			}
@@ -97,4 +129,25 @@ func addEdgeIntersection(intersections []Intersection, p0 *mesh.ProcessedVertex,
 	}
 
 	return intersections
+}
+
+func (r *Rasterizer) clearZBuff(w, h int) {
+	if r.zbuff == nil || len(r.zbuff) != (w+1) || len(r.zbuff[0]) != (h+1) {
+		r.zbuff = make([][]float32, w+1)
+
+		for i := 0; i < w+1; i++ {
+			r.zbuff[i] = make([]float32, h+1)
+			for j := 0; j < h+1; j++ {
+				r.zbuff[i][j] = -math.MaxFloat32
+			}
+		}
+
+		return
+	}
+
+	for i := 0; i < w+1; i++ {
+		for j := 0; j < h+1; j++ {
+			r.zbuff[i][j] = -math.MaxFloat32
+		}
+	}
 }

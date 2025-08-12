@@ -2,7 +2,7 @@ package mesh
 
 import (
 	"AsciiRenderer/cameracontroller"
-	"AsciiRenderer/mvp"
+	"AsciiRenderer/viewport"
 	"github.com/go-gl/mathgl/mgl32"
 	"math"
 	"sync"
@@ -28,14 +28,18 @@ func Init() *MeshController {
 	return instance
 }
 
-func (m *MeshController) ProcessVertices(camera *cameracontroller.CameraController, windowWidth, windowHeight int, tick int) mgl32.Vec3 { //TODO Вынести матрицы view модели и тд отдельно и в параметры передавать
-	model := mvp.MakeModelMatrix(0., -2., 0., 1., 1., 1., float32(tick)*(math.Pi/180.0))
+func (m *MeshController) ProcessVertices(camera *cameracontroller.CameraController, viewPortController *viewport.ViewPortController) {
 	view := camera.CameraState().ViewMatrix()
-	proj := mvp.MakePerspectiveProjection(60, float32(windowWidth)*0.6/float32(windowHeight), 0.1, 100)
-	modelViewMatrix := view.Mul4(model)
-	normalModelView := modelViewMatrix.Inv().Transpose()
+	w, h := viewPortController.GetWindowSize()
+
+	proj := mgl32.Perspective((90*math.Pi)/180.0, float32(w)*0.6/float32(h), 0.1, 100)
+
 	//todo clipping
 	for j := 0; j < len(m.meshes); j++ {
+		m.meshes[j].UpdateModelMatrix()
+		model := m.meshes[j].ModelMatrix
+		modelViewMatrix := view.Mul4(model)
+		normalModelView := modelViewMatrix.Inv().Transpose()
 		for i := 0; i < len(m.meshes[j].RawVertices); i++ {
 			var modelSpace = model.Mul4x1(m.meshes[j].RawVertices[i])
 			var cameraSpace = view.Mul4x1(modelSpace)
@@ -44,8 +48,8 @@ func (m *MeshController) ProcessVertices(camera *cameracontroller.CameraControll
 			ndcX := clipSpace.X() / clipSpace.W()
 			ndcY := clipSpace.Y() / clipSpace.W()
 
-			x := math.Min(float64(windowWidth), (float64(ndcX)+1)*0.5*float64(windowWidth))
-			y := math.Min(float64(windowHeight), (1-(float64(ndcY)+1)*0.5)*float64(windowHeight))
+			x := math.Min(float64(w), (float64(ndcX)+1)*0.5*float64(w))
+			y := math.Min(float64(h), (1-(float64(ndcY)+1)*0.5)*float64(h))
 
 			m.meshes[j].ProcessedVertices[i] = ProcessedVertex{xScreen: float32(x), yScreen: float32(y), xSource: m.meshes[j].RawVertices[i].X(), ySource: m.meshes[j].RawVertices[i].Y(),
 				zSource: m.meshes[j].RawVertices[i].Z(), xCam: cameraSpace.X(), yCam: cameraSpace.Y(), zCam: cameraSpace.Z(), wClip: clipSpace.W()}
@@ -54,7 +58,6 @@ func (m *MeshController) ProcessVertices(camera *cameracontroller.CameraControll
 			m.meshes[j].ProcessedNormals[i] = normalModelView.Mul4x1(normalVec4).Vec3().Normalize()
 		}
 	}
-	return mgl32.Vec3{-view.At(0, 2), -view.At(1, 2), -view.At(2, 2)}.Normalize()
 }
 
 func (m *MeshController) AddMesh(mesh *Mesh) {

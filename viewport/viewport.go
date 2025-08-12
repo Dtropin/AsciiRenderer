@@ -6,7 +6,7 @@ import (
 )
 
 type ViewPortController struct {
-	screen tcell.Screen //TODO разбить инпут
+	screen tcell.Screen
 }
 
 var (

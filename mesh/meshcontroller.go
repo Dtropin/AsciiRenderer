@@ -69,3 +69,9 @@ func (m *MeshController) AddMesh(mesh *Mesh) {
 		m.meshes = make([]*Mesh, 1)
 	}
 }
+
+func (m *MeshController) AddMeshes(meshes []Mesh) {
+	for _, ms := range meshes {
+		m.AddMesh(&ms)
+	}
+}

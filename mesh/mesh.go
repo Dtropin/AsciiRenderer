@@ -13,6 +13,7 @@ type Mesh struct {
 	Pos               mgl32.Vec3
 	Scale             mgl32.Vec3
 	AngleRad          float32
+	Id                string
 }
 
 func (mesh *Mesh) UpdateModelMatrix() {

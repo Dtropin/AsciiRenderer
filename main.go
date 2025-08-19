@@ -7,6 +7,8 @@ import (
 	"AsciiRenderer/meshesloader"
 	"AsciiRenderer/rasterization"
 	"AsciiRenderer/viewport"
+	"github.com/gdamore/tcell/v2"
+	"math"
 	"time"
 )
 
@@ -30,16 +32,64 @@ func main() {
 	ticker := time.NewTicker(16 * time.Millisecond)
 	defer ticker.Stop()
 
-	var tick = 0
+	inputEvents := make(chan tcell.Event)
+	prevMouseX, prevMouseY := 0, 0
+
+	go func() {
+		for {
+			inputEvents <- viewPortController.PollEvent()
+		}
+	}()
 
 	for {
 		select {
 		case <-ticker.C:
-			tick = inputcontoller.HandleInputKeys(tick, cameraController)
-			viewPortController.Clear()
-			meshController.ProcessVertices(cameraController, viewPortController)
-			rasterizer.ScanlineRasterization(meshController.Meshes(), viewPortController, cameraController)
-			viewPortController.Flush()
+			select {
+			case ev := <-inputEvents:
+				switch evt := ev.(type) {
+				case *tcell.EventMouse:
+					mouseX, mouseY := evt.Position()
+					var xDir, yDir int
+
+					if mouseX != 0 {
+						xDir = mouseX - prevMouseX
+						if xDir != 0 {
+							xDir /= int(math.Abs(float64(xDir)))
+						}
+					}
+
+					if mouseY != 0 {
+						yDir = mouseY - prevMouseY
+						if yDir != 0 {
+							yDir /= int(math.Abs(float64(yDir)))
+						}
+					}
+
+					inputcontoller.MouseEvent(cameraController, xDir, yDir)
+					prevMouseX = mouseX
+					prevMouseY = mouseY
+				}
+			default:
+			}
 		}
+		w, h := viewPortController.GetWindowSize()
+		if prevMouseX <= 0 {
+			inputcontoller.MouseEvent(cameraController, -1, 0)
+		}
+		if prevMouseX >= w-1 {
+			inputcontoller.MouseEvent(cameraController, 1, 0)
+		}
+		if prevMouseY <= 0 {
+			inputcontoller.MouseEvent(cameraController, 0, -1)
+		}
+		if prevMouseY >= h-1 {
+			inputcontoller.MouseEvent(cameraController, 0, 1)
+		}
+
+		inputcontoller.HandleInputKeys(cameraController)
+		viewPortController.Clear()
+		meshController.ProcessVertices(cameraController, viewPortController)
+		rasterizer.ScanlineRasterization(meshController.Meshes(), viewPortController, cameraController)
+		viewPortController.Flush()
 	}
 }

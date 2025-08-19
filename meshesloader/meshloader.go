@@ -35,7 +35,7 @@ func LoadObjMeshes(filenames []string) []mesh.Mesh {
 				y, _ := strconv.ParseFloat(line[2], 32)
 				z, _ := strconv.ParseFloat(line[3], 32)
 				normal := mgl32.Vec4{float32(x), float32(y), float32(z), 0}
-				normals = append(normals, normal.Mul(-1))
+				normals = append(normals, normal)
 				continue
 			}
 

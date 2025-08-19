@@ -80,10 +80,11 @@ func (r *Rasterizer) ScanlineRasterization(meshes []*mesh.Mesh,
 						if x >= 0 && y >= 0 && wp > r.zbuff[x][y] {
 							r.zbuff[x][y] = wp
 							un := n0.Mul(u).Add(n1.Mul(v)).Add(n2.Mul(w)).Normalize()
-							//TODO учесть дистанцию от источника света
-							lightRay := mgl32.Vec3{-cameraController.CameraState().ViewMatrix().At(0, 2),
-								-cameraController.CameraState().ViewMatrix().At(1, 2), -cameraController.CameraState().ViewMatrix().At(2, 2)}.Normalize()
-							intensity := (lightRay.Dot(mgl32.Vec3{un.X(), un.Y(), un.Z()}) + 1.0) / 2.0
+
+							lightDir := mgl32.Vec3{0, 1, -1}.Normalize()
+							lightDirCameraSpace := cameraController.CameraState().ViewMatrix.Mul4x1(lightDir.Vec4(0)).Vec3().Normalize()
+							spotLightDotProduct := lightDirCameraSpace.Dot(un)
+							intensity := (spotLightDotProduct + 1.0) / 2.0
 							viewPortController.SetChar(x, y, r.colorMap[int(intensity*float32(len(r.colorMap)-1))])
 						}
 					}

@@ -17,9 +17,15 @@ func isKeyPressed(vKey int) bool {
 	return ret&0x8000 != 0
 }
 
-func HandleInputKeys(tick int, controller *cameracontroller.CameraController) int {
+func MouseEvent(cameraController *cameracontroller.CameraController, xDir, yDir int) {
+	cameraController.Yaw(float32(xDir))
+	cameraController.Pitch(float32(yDir))
+}
+
+func HandleInputKeys(controller *cameracontroller.CameraController) {
 	if isKeyPressed(0x41) {
 		//a
+		controller.Left(0.1)
 	}
 	if isKeyPressed(0x57) {
 		//s
@@ -31,6 +37,7 @@ func HandleInputKeys(tick int, controller *cameracontroller.CameraController) in
 	}
 	if isKeyPressed(0x44) {
 		//d
+		controller.Right(0.1)
 	}
 	if isKeyPressed(0x52) {
 		//r
@@ -40,11 +47,4 @@ func HandleInputKeys(tick int, controller *cameracontroller.CameraController) in
 		//f
 		controller.Down(0.1)
 	}
-	if isKeyPressed(0x51) {
-		tick++
-	}
-	if isKeyPressed(0x45) {
-		tick--
-	}
-	return tick
 }

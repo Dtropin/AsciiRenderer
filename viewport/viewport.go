@@ -30,6 +30,7 @@ func Init() *ViewPortController {
 			Foreground(tcell.ColorWhite).
 			Background(tcell.ColorBlack))
 		screen.EnablePaste()
+		screen.EnableMouse()
 		instance.screen = screen
 	})
 	return instance
